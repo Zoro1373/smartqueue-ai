@@ -14,6 +14,34 @@ Intelligent checkout queue monitoring dashboard built with Flask and computer vi
 
 ---
 
+## 🏗️ Pipeline Architecture
+
+The end-to-end computer vision and analytics pipeline was constructed and compiled using **PipeGen**:
+
+![Pipeline Architecture](assets/pipeline-architecture.png)
+
+### Pipeline Stages
+1. **Input**: Ingests video frames along with source timestamp metadata.
+2. **Preprocess**: Letterboxes BGR frames and produces normalized RGB model tensors (`fp32 [1, 3, 640, 640]`).
+3. **Inference**: High-throughput YOLO11s COCO person detector running batch-1 inference with latency profiling.
+4. **Postprocess**: Source YOLO bounding box decoding with Non-Maximum Suppression (NMS) to isolate genuine person detections.
+5. **Custom Logic**: People counting inside the designated checkout polygon region of interest (ROI).
+6. **Output**: Structured JSON output recording frame-by-frame detections, occupancy counts, and measured inference performance.
+
+---
+
+## 🎥 Pipeline Demonstration
+
+Watch the PipeGen pipeline generation, latency tracking benchmark, and export execution:
+
+<video src="assets/pipeline-demo.mp4" controls="controls" width="100%">
+  Your browser does not support the video tag.
+</video>
+
+> 📹 *Can't play the video above? [Click here to view or download the demo video](assets/pipeline-demo.mp4).*
+
+---
+
 ## 🚀 Features
 
 - **Real-Time Analytics Summary**: Instant KPIs including total frames processed, total detections, average detections per frame, and average model confidence.
@@ -31,6 +59,9 @@ Intelligent checkout queue monitoring dashboard built with Flask and computer vi
 smartqueue-ai/
 ├── app.py                      # Flask backend and API endpoints
 ├── requirements.txt            # Python dependencies (Flask)
+├── assets/
+│   ├── pipeline-architecture.png # CV pipeline architecture diagram
+│   └── pipeline-demo.mp4       # Video demonstration of pipeline execution
 ├── data/
 │   └── metadata_nms_test.json  # Precomputed CV detection metadata
 ├── templates/
