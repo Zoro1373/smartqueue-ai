@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartQueue AI</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #131b2e;
+      --muted: #91a0ba;
+      --text: #edf3ff;
+      --accent: #65e5bc;
+      --border: #26334b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+    }
+    main { max-width: 1150px; margin: auto; padding: 32px 20px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .logo {
+      background: var(--accent); color:#082019; width:44px; height:44px;
+      border-radius:13px; display:grid; place-items:center; font-size:23px; font-weight:900;
+    }
+    h1 { font-size:25px; margin:0; }
+    .subtitle, .muted { color:var(--muted); font-size:13px; }
+    .status { border:1px solid var(--border); border-radius:30px; padding:9px 13px; font-size:13px; }
+    .dot { color:var(--accent); margin-right:7px; }
+    .hero { margin:36px 0 22px; }
+    .hero h2 { font-size:clamp(27px,4vw,40px); margin:0 0 8px; letter-spacing:-1px; }
+    .hero p { color:var(--muted); margin:0; line-height:1.6; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+    .panel { background:var(--panel); border:1px solid var(--border); border-radius:17px; padding:21px; min-width:0; }
+    .metric-label { color:var(--muted); font-size:13px; }
+    .metric { font-size:32px; font-weight:750; margin:13px 0 6px; letter-spacing:-1px; }
+    .metric-note { font-size:12px; color:var(--muted); line-height:1.5; }
+    .section { margin-top:18px; }
+    .section h3 { font-size:16px; margin:0 0 18px; }
+    .chart-wrap { width:100%; overflow:hidden; }
+    canvas { display:block; width:100%; height:230px; }
+    .notice { border-left:3px solid #eabf63; background:#241f17; color:#f2d9a5;
+      border-radius:8px; padding:13px 15px; font-size:13px; line-height:1.6; margin-top:18px; }
+    .details { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .detail-row { display:flex; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); font-size:13px; }
+    .detail-row:last-child { border-bottom:0; }
+    footer { color:var(--muted); font-size:12px; text-align:center; margin:26px 0 4px; }
+    @media(max-width:800px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .details { grid-template-columns:1fr; } }
+    @media(max-width:450px) { main { padding:22px 13px; } .panel { padding:16px; } .metric { font-size:27px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">
+      <div class="logo">Q</div>
+      <div>
+        <h1>SmartQueue <span style="color:#65e5bc">AI</span></h1>
+        <div class="subtitle">Intelligent checkout monitoring</div>
+      </div>
+    </div>
+    <div class="status"><span class="dot">●</span><span id="connection">Connecting...</span></div>
+  </header>
+
+  <section class="hero">
+    <h2>Queue intelligence, <span style="color:#65e5bc">at a glance.</span></h2>
+    <p>PipeGen computer vision results · TensorRT inference · Video analytics</p>
+  </section>
+
+  <section class="grid">
+    <article class="panel">
+      <div class="metric-label">Frames processed</div>
+      <div class="metric" id="frames">—</div>
+      <div class="metric-note">Frames in the processed video</div>
+    </article>
+    <article class="panel">
+      <div class="metric-label">Person detections</div>
+      <div class="metric" id="detections">—</div>
+      <div class="metric-note">Detections across all frames</div>
+    </article>
+    <article class="panel">
+      <div class="metric-label">Average detections / frame</div>
+      <div class="metric" id="average">—</div>
+      <div class="metric-note">Not a unique-person count</div>
+    </article>
+    <article class="panel">
+      <div class="metric-label">Average confidence</div>
+      <div class="metric" id="confidence">—</div>
+      <div class="metric-note">Model confidence, not accuracy</div>
+    </article>
+  </section>
+
+  <section class="panel section">
+    <h3>Detection trend across video</h3>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    <div class="muted">Number of person detections per frame</div>
+  </section>
+
+  <div class="notice">
+    <strong>Preliminary analytics:</strong> The current ROI covers the whole frame.
+    These detections are not a verified queue length. Person tracking is not enabled
+    in the current metadata, so the same person may be detected in multiple frames.
+  </div>
+
+  <section class="details section">
+    <article class="panel">
+      <h3>Pipeline details</h3>
+      <div class="detail-row"><span class="muted">AI pipeline</span><span id="pipeline">—</span></div>
+      <div class="detail-row"><span class="muted">Minimum confidence filter</span><span id="threshold">—</span></div>
+      <div class="detail-row"><span class="muted">ROI configuration</span><span id="roi">—</span></div>
+    </article>
+    <article class="panel">
+      <h3>Detection range</h3>
+      <div class="detail-row"><span class="muted">Minimum / frame</span><strong id="min">—</strong></div>
+      <div class="detail-row"><span class="muted">Maximum / frame</span><strong id="max">—</strong></div>
+      <div class="detail-row"><span class="muted">Last refresh</span><strong id="updated">—</strong></div>
+    </article>
+  </section>
+  <footer>SmartQueue AI · Hackathon prototype · Results reflect the current test video</footer>
+</main>
+
+<script>
+let counts = [];
+
+async function refresh() {
+  const connection = document.getElementById("connection");
+  try {
+    const [statusResponse, response] = await Promise.all([
+      fetch("/api/status"), fetch("/api/summary")
+    ]);
+    if (!statusResponse.ok || !response.ok) throw new Error("API unavailable");
+    const status = await statusResponse.json();
+    const data = await response.json();
+    if (!status.metadata_available) throw new Error("Metadata not found");
+
+    connection.textContent = "Backend online · AI data loaded";
+    document.getElementById("frames").textContent = data.frames_processed.toLocaleString();
+    document.getElementById("detections").textContent = data.total_detections.toLocaleString();
+    document.getElementById("average").textContent = data.average_detections.toFixed(2);
+    document.getElementById("confidence").textContent =
+      (data.average_confidence * 100).toFixed(1) + "%";
+    document.getElementById("pipeline").textContent = data.project;
+    document.getElementById("threshold").textContent = data.min_confidence ?? "—";
+    document.getElementById("roi").textContent = (data.roi_scope || []).join(", ");
+    document.getElementById("min").textContent = data.min_detections;
+    document.getElementById("max").textContent = data.max_detections;
+    document.getElementById("updated").textContent = new Date().toLocaleTimeString();
+    counts = data.timeline.map(item => item.detections);
+    drawChart();
+  } catch (error) {
+    connection.textContent = "Connection or metadata error";
+    console.error(error);
+  }
+}
+
+function drawChart() {
+  const canvas = document.getElementById("chart");
+  const rect = canvas.getBoundingClientRect();
+  const scale = window.devicePixelRatio || 1;
+  canvas.width = rect.width * scale;
+  canvas.height = 230 * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+  const w = rect.width, h = 230;
+  ctx.clearRect(0, 0, w, h);
+  if (!counts.length) return;
+
+  const max = Math.max(1, ...counts);
+  const left = 28, right = 10, top = 12, bottom = 25;
+  const chartW = w - left - right, chartH = h - top - bottom;
+
+  ctx.font = "11px system-ui";
+  ctx.strokeStyle = "#26334b";
+  ctx.fillStyle = "#91a0ba";
+  for (let i = 0; i <= 4; i++) {
+    const y = top + chartH * i / 4;
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(w-right, y); ctx.stroke();
+    ctx.fillText(String(Math.round(max * (4-i) / 4)), 2, y + 4);
+  }
+
+  ctx.beginPath();
+  counts.forEach((value, i) => {
+    const x = left + chartW * i / Math.max(1, counts.length - 1);
+    const y = top + chartH * (1 - value / max);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = "#65e5bc";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "#91a0ba";
+  ctx.fillText("Frame 0", left, h - 5);
+  ctx.fillText("Frame " + (counts.length - 1), Math.max(left, w - 85), h - 5);
+}
+window.addEventListener("resize", drawChart);
+refresh();
+</script>
+</body>
+</html>
